@@ -9,21 +9,26 @@ class NotesService {
 
   final TablesDB _db;
 
-  Future<List<Note>> list() async {
+  Future<List<Note>> list(String userId) async {
     final result = await _db.listRows(
       databaseId: AppConfig.databaseId,
       tableId: AppConfig.tableId,
-      queries: [Query.orderDesc('\$createdAt')],
+      queries: [Query.equal('userId', userId), Query.orderDesc('\$createdAt')],
     );
     return result.rows.map(Note.fromRow).toList();
   }
 
-  Future<Note> create(NoteDraft draft) async {
+  Future<Note> create(String userId, NoteDraft draft) async {
     final row = await _db.createRow(
       databaseId: AppConfig.databaseId,
       tableId: AppConfig.tableId,
       rowId: ID.unique(),
-      data: {'title': draft.title, 'content': draft.content},
+      data: {'title': draft.title, 'content': draft.content, 'userId': userId},
+      permissions: [
+        Permission.read(Role.user(userId)),
+        Permission.update(Role.user(userId)),
+        Permission.delete(Role.user(userId)),
+      ],
     );
     return Note.fromRow(row);
   }

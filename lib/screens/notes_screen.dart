@@ -1,8 +1,11 @@
 import 'package:appwrite/appwrite.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../models/note.dart';
+import '../providers/auth_provider.dart';
 import '../services/notes_service.dart';
+import '../widgets/empty_state.dart';
 import '../widgets/note_input_dialog.dart';
 import '../widgets/note_item.dart';
 
@@ -14,6 +17,9 @@ class NotesScreen extends StatefulWidget {
 }
 
 class _NotesScreenState extends State<NotesScreen> {
+  // The route is protected, so a user always exists on this screen
+  late final String _userId = context.read<AuthProvider>().user!.$id;
+
   List<Note> _notes = [];
   bool _loading = true;
   String? _error;
@@ -30,7 +36,7 @@ class _NotesScreenState extends State<NotesScreen> {
       _error = null;
     });
     try {
-      final notes = await notesService.list();
+      final notes = await notesService.list(_userId);
       if (!mounted) return;
       setState(() => _notes = notes);
     } on AppwriteException catch (e) {
@@ -50,7 +56,7 @@ class _NotesScreenState extends State<NotesScreen> {
     final draft = await showNoteInputDialog(context);
     if (draft == null) return;
     try {
-      final created = await notesService.create(draft);
+      final created = await notesService.create(_userId, draft);
       if (!mounted) return;
       setState(() => _notes.insert(0, created));
     } on AppwriteException catch (e) {
@@ -122,14 +128,7 @@ class _NotesScreenState extends State<NotesScreen> {
       body = RefreshIndicator(
         onRefresh: _load,
         child: _notes.isEmpty
-            ? ListView(
-                children: const [
-                  Padding(
-                    padding: EdgeInsets.all(32),
-                    child: Center(child: Text('No notes yet.')),
-                  ),
-                ],
-              )
+            ? ListView(children: [EmptyState(onCreate: _add)])
             : ListView.builder(
                 padding: const EdgeInsets.all(8),
                 itemCount: _notes.length,
